@@ -1,0 +1,9 @@
+flask==3.0.0
+anthropic==0.49.0
+yfinance==0.2.66
+pandas==2.3.3
+numpy==2.3.5
+finnhub-python==2.4.20
+python-dotenv==1.0.0
+requests==2.32.5
+apscheduler==3.10.4
