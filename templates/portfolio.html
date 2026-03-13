@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MarketLens · Portfolio</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%23050810'/><rect width='32' height='32' rx='6' fill='none' stroke='%2300D4FF' stroke-width='2'/><text x='50%25' y='50%25' dominant-baseline='central' text-anchor='middle' font-family='monospace' font-weight='700' font-size='14' fill='%2300D4FF'>ML</text></svg>">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #050810;
+      --surface: #0a0f1e;
+      --surface2: #0f1628;
+      --border: #1a2444;
+      --accent: #00D4FF;
+      --accent-dim: rgba(0, 212, 255, 0.1);
+      --text: #e2e8f8;
+      --muted: #4a5580;
+      --green: #00ff88;
+      --red: #ff3d5a;
+      --yellow: #ffd700;
+      --orange: #ff8c00;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background-color: var(--bg);
+      background-image:
+        linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      min-height: 100vh;
+    }
+
+    .mono { font-family: 'JetBrains Mono', monospace; }
+
+    /* Navbar */
+    nav {
+      border-bottom: 1px solid var(--border);
+      background: rgba(5, 8, 16, 0.95);
+      backdrop-filter: blur(20px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .nav-inner {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 32px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+
+    .logo-mark {
+      width: 32px;
+      height: 32px;
+      border: 1.5px solid var(--accent);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent);
+      box-shadow: 0 0 12px rgba(0,212,255,0.3);
+    }
+
+    .logo-text {
+      font-family: 'Syne', sans-serif;
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--text);
+      letter-spacing: 0.02em;
+    }
+
+    .logo-text span { color: var(--accent); }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .nav-link {
+      padding: 6px 16px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--muted);
+      text-decoration: none;
+      transition: all 0.2s;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .nav-link:hover { color: var(--text); background: var(--surface2); }
+    .nav-link.active { color: var(--accent); background: var(--accent-dim); }
+
+    .live-dot {
+      width: 6px;
+      height: 6px;
+      background: var(--green);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+      box-shadow: 0 0 6px var(--green);
+    }
+
+    @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+
+    main {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 32px;
+    }
+
+    /* Summary cards */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+
+    .summary-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px 24px;
+    }
+
+    .summary-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .summary-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1;
+    }
+
+    .summary-sub {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    .up { color: var(--green); }
+    .down { color: var(--red); }
+
+    /* Two column layout */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 24px;
+      align-items: start;
+    }
+
+    /* Card base */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    .card-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* Holdings table */
+    .holdings-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .holdings-table th {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      text-align: left;
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      font-weight: 500;
+    }
+
+    .holdings-table td {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: var(--text);
+      padding: 14px 12px;
+      border-bottom: 1px solid rgba(26,36,68,0.5);
+    }
+
+    .holdings-table tr:last-child td { border-bottom: none; }
+
+    .holdings-table tr:hover td { background: rgba(0,212,255,0.02); }
+
+    .ticker-cell {
+      font-weight: 700;
+      color: var(--accent);
+      font-size: 14px;
+    }
+
+    .risk-pill {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .risk-low { background: rgba(0,255,136,0.1); color: var(--green); border: 1px solid rgba(0,255,136,0.2); }
+    .risk-moderate { background: rgba(255,215,0,0.1); color: var(--yellow); border: 1px solid rgba(255,215,0,0.2); }
+    .risk-elevated { background: rgba(255,140,0,0.1); color: var(--orange); border: 1px solid rgba(255,140,0,0.2); }
+    .risk-high { background: rgba(255,61,90,0.1); color: var(--red); border: 1px solid rgba(255,61,90,0.2); }
+
+    .alert-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .alert-none { background: var(--muted); }
+    .alert-yellow { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); }
+    .alert-orange { background: var(--orange); box-shadow: 0 0 6px var(--orange); }
+    .alert-red { background: var(--red); box-shadow: 0 0 6px var(--red); animation: pulse 1.5s infinite; }
+
+    .delete-btn {
+      background: none;
+      border: 1px solid rgba(255,61,90,0.2);
+      color: var(--red);
+      border-radius: 4px;
+      padding: 4px 10px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.2s;
+      opacity: 0.6;
+    }
+
+    .delete-btn:hover { opacity: 1; background: rgba(255,61,90,0.08); }
+
+    .analyze-btn {
+      background: none;
+      border: 1px solid rgba(0,212,255,0.2);
+      color: var(--accent);
+      border-radius: 4px;
+      padding: 4px 10px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.2s;
+      opacity: 0.6;
+    }
+
+    .analyze-btn:hover { opacity: 1; background: var(--accent-dim); }
+
+    /* Add holding form */
+    .add-form {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr auto;
+      gap: 12px;
+      align-items: end;
+    }
+
+    .form-group label {
+      display: block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    .form-input {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .form-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,212,255,0.1); }
+    .form-input::placeholder { color: var(--muted); }
+
+    .add-btn {
+      background: var(--accent);
+      color: #000;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .add-btn:hover { background: #33ddff; box-shadow: 0 0 20px rgba(0,212,255,0.4); }
+    .add-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* Analyze all btn */
+    .analyze-all-btn {
+      background: none;
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      border-radius: 8px;
+      padding: 8px 20px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: 0.05em;
+    }
+
+    .analyze-all-btn:hover { background: var(--accent-dim); box-shadow: 0 0 20px rgba(0,212,255,0.2); }
+    .analyze-all-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* Sidebar */
+    .sidebar-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+
+    /* Sector chart */
+    #sectorChart { width: 100%; height: 260px; }
+
+    /* Weighted risk */
+    .portfolio-risk-score {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 48px;
+      font-weight: 700;
+      line-height: 1;
+      text-align: center;
+      margin: 12px 0 8px;
+    }
+
+    .gauge-bar {
+      width: 100%;
+      height: 4px;
+      background: var(--surface2);
+      border-radius: 2px;
+      margin: 8px 0 12px;
+      overflow: hidden;
+    }
+
+    .gauge-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.8s ease, background 0.5s;
+    }
+
+    /* Expanded analysis panel */
+    .analysis-panel {
+      display: none;
+      background: var(--surface2);
+      border-top: 1px solid var(--border);
+      padding: 20px;
+    }
+
+    .analysis-panel.open { display: block; }
+
+    .panel-summary {
+      font-size: 13px;
+      color: var(--text);
+      line-height: 1.7;
+      margin-bottom: 16px;
+    }
+
+    .panel-factors {
+      list-style: none;
+      margin-bottom: 16px;
+    }
+
+    .panel-factor {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 6px 0;
+      font-size: 12px;
+      color: rgba(226,232,248,0.8);
+      line-height: 1.5;
+    }
+
+    .factor-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--accent);
+      margin-top: 6px;
+      flex-shrink: 0;
+    }
+
+    .watch-panel {
+      background: rgba(0,212,255,0.04);
+      border: 1px solid rgba(0,212,255,0.1);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 12px;
+      color: rgba(226,232,248,0.7);
+      line-height: 1.6;
+    }
+
+    .watch-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--accent);
+      letter-spacing: 0.1em;
+      margin-bottom: 6px;
+    }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 48px 24px;
+      color: var(--muted);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+    }
+
+    .empty-icon {
+      font-size: 32px;
+      margin-bottom: 12px;
+      opacity: 0.4;
+    }
+
+    /* Loading */
+    .loading-row td {
+      text-align: center;
+      padding: 32px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Best/worst */
+    .best-worst {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .bw-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .bw-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      color: var(--muted);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    .bw-ticker {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .bw-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      margin-top: 2px;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 20px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--text);
+      z-index: 999;
+      transform: translateY(80px);
+      opacity: 0;
+      transition: all 0.3s;
+    }
+
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.success { border-color: rgba(0,255,136,0.3); color: var(--green); }
+    .toast.error { border-color: rgba(255,61,90,0.3); color: var(--red); }
+
+    /* Risk colors */
+    .score-low { color: var(--green); }
+    .score-moderate { color: var(--yellow); }
+    .score-elevated { color: var(--orange); }
+    .score-high { color: var(--red); }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a href="/" class="logo">
+      <div class="logo-mark">ML</div>
+      <div class="logo-text">Market<span>Lens</span></div>
+    </a>
+    <div class="nav-links">
+      <div class="live-dot" style="margin-right:8px;"></div>
+      <a href="/" class="nav-link">Analysis</a>
+      <a href="/portfolio" class="nav-link active">Portfolio</a>
+    </div>
+  </div>
+</nav>
+
+<main>
+
+  <!-- Summary Row -->
+  <div class="summary-grid" id="summaryGrid">
+    <div class="summary-card">
+      <div class="summary-label">Total Value</div>
+      <div class="summary-value mono" id="totalValue">—</div>
+      <div class="summary-sub" id="totalValueSub">Loading portfolio...</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-label">Total P&L</div>
+      <div class="summary-value mono" id="totalPnl">—</div>
+      <div class="summary-sub" id="totalPnlPct">—</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-label">Portfolio Risk</div>
+      <div class="summary-value mono" id="portfolioRisk">—</div>
+      <div class="summary-sub" id="portfolioRiskSub">Weighted avg risk score</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-label">Holdings</div>
+      <div class="summary-value mono" id="holdingsCount">—</div>
+      <div class="summary-sub" id="holdingsSub">positions tracked</div>
+    </div>
+  </div>
+
+  <div class="main-grid">
+
+    <!-- Left column -->
+    <div>
+
+      <!-- Holdings Table -->
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--border);">
+          <div class="card-title" style="margin:0;padding:0;border:none;">Holdings</div>
+          <button class="analyze-all-btn" id="analyzeAllBtn" onclick="analyzeAll()">⚡ Analyze All</button>
+        </div>
+        <table class="holdings-table">
+          <thead>
+            <tr>
+              <th>Ticker</th>
+              <th>Shares</th>
+              <th>Avg Cost</th>
+              <th>Current Price</th>
+              <th>Value</th>
+              <th>P&L</th>
+              <th>P&L %</th>
+              <th>Risk</th>
+              <th>Alert</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="holdingsBody">
+            <tr class="loading-row">
+              <td colspan="10"><span class="spinner"></span>Loading holdings...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Add Holding -->
+      <div class="card">
+        <div class="card-title">Add Holding</div>
+        <div class="add-form">
+          <div class="form-group">
+            <label>Ticker</label>
+            <input type="text" class="form-input mono" id="addTicker" placeholder="AAPL" style="text-transform:uppercase;">
+          </div>
+          <div class="form-group">
+            <label>Shares</label>
+            <input type="number" class="form-input mono" id="addShares" placeholder="10" min="0" step="any">
+          </div>
+          <div class="form-group">
+            <label>Avg Cost ($)</label>
+            <input type="number" class="form-input mono" id="addCost" placeholder="150.00" min="0" step="any">
+          </div>
+          <button class="add-btn" onclick="addHolding()">+ Add</button>
+        </div>
+      </div>
+
+      <!-- Best / Worst -->
+      <div class="card" id="bestWorstCard" style="display:none;">
+        <div class="card-title">Performance Highlights</div>
+        <div class="best-worst">
+          <div class="bw-card">
+            <div class="bw-label">Best Performer</div>
+            <div class="bw-ticker up" id="bestTicker">—</div>
+            <div class="bw-val up" id="bestVal">—</div>
+          </div>
+          <div class="bw-card">
+            <div class="bw-label">Worst Performer</div>
+            <div class="bw-ticker down" id="worstTicker">—</div>
+            <div class="bw-val down" id="worstVal">—</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right sidebar -->
+    <div>
+
+      <!-- Portfolio Risk Score -->
+      <div class="sidebar-card" id="riskSidebar" style="display:none;">
+        <div class="card-title">Portfolio Risk Score</div>
+        <div class="portfolio-risk-score mono" id="sidebarRiskScore">—</div>
+        <div class="gauge-bar"><div class="gauge-fill" id="sidebarGaugeFill" style="width:0%"></div></div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--muted);text-align:center;">Weighted by position size</div>
+      </div>
+
+      <!-- Sector Concentration -->
+      <div class="sidebar-card" id="sectorSidebar" style="display:none;">
+        <div class="card-title">Sector Concentration</div>
+        <div id="sectorChart"></div>
+      </div>
+
+    </div>
+  </div>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  let portfolioData = [];
+  let analysisData = {};
+
+  // ── Helpers ────────────────────────────────────────────────────
+  function fmt(n, decimals=2) {
+    if (n === null || n === undefined || isNaN(n)) return '—';
+    return n.toFixed(decimals);
+  }
+
+  function fmtDollar(n) {
+    if (n === null || n === undefined || isNaN(n)) return '—';
+    const abs = Math.abs(n);
+    const prefix = n < 0 ? '-$' : '$';
+    if (abs >= 1e6) return prefix + (abs/1e6).toFixed(2) + 'M';
+    if (abs >= 1e3) return prefix + (abs/1e3).toFixed(1) + 'K';
+    return prefix + abs.toFixed(2);
+  }
+
+  function fmtChange(n) {
+    if (n === null || n === undefined || isNaN(n)) return '—';
+    return (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
+  }
+
+  function riskClass(score) {
+    if (score < 30) return 'score-low';
+    if (score < 55) return 'score-moderate';
+    if (score < 75) return 'score-elevated';
+    return 'score-high';
+  }
+
+  function riskColor(score) {
+    if (score < 30) return 'var(--green)';
+    if (score < 55) return 'var(--yellow)';
+    if (score < 75) return 'var(--orange)';
+    return 'var(--red)';
+  }
+
+  function riskPillClass(score) {
+    if (score < 30) return 'risk-low';
+    if (score < 55) return 'risk-moderate';
+    if (score < 75) return 'risk-elevated';
+    return 'risk-high';
+  }
+
+  function riskLabel(score) {
+    if (score < 30) return 'LOW';
+    if (score < 55) return 'MOD';
+    if (score < 75) return 'HIGH';
+    return 'CRIT';
+  }
+
+  function showToast(msg, type='success') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = `toast ${type} show`;
+    setTimeout(() => t.className = 'toast', 3000);
+  }
+
+  // ── Load portfolio ─────────────────────────────────────────────
+  async function loadPortfolio() {
+    try {
+      const res = await fetch('/portfolio/get');
+      const data = await res.json();
+      portfolioData = data.holdings || [];
+      renderHoldingsTable(portfolioData);
+      document.getElementById('holdingsCount').textContent = portfolioData.length;
+      document.getElementById('holdingsSub').textContent = portfolioData.length === 1 ? 'position tracked' : 'positions tracked';
+    } catch(e) {
+      showToast('Failed to load portfolio', 'error');
+    }
+  }
+
+  // ── Render holdings table ──────────────────────────────────────
+  function renderHoldingsTable(holdings) {
+    const tbody = document.getElementById('holdingsBody');
+
+    if (holdings.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="10">
+            <div class="empty-state">
+              <div class="empty-icon">📊</div>
+              <div>No holdings yet. Add your first position below.</div>
+            </div>
+          </td>
+        </tr>`;
+      document.getElementById('totalValue').textContent = '$0.00';
+      document.getElementById('totalPnl').textContent = '$0.00';
+      document.getElementById('totalPnlPct').textContent = '—';
+      return;
+    }
+
+    tbody.innerHTML = '';
+
+    let totalValue = 0;
+    let totalCost = 0;
+    let bestTicker = null, bestPnlPct = -Infinity;
+    let worstTicker = null, worstPnlPct = Infinity;
+    let weightedRisk = 0;
+    let totalWeightedValue = 0;
+    let hasAnalysis = false;
+    const sectorMap = {};
+
+    holdings.forEach(h => {
+      const analysis = analysisData[h.ticker];
+      const snapshot = analysis ? analysis.snapshot : null;
+      const currentPrice = snapshot ? snapshot.current_price : null;
+      const posValue = currentPrice ? currentPrice * h.shares : null;
+      const costBasis = h.average_cost * h.shares;
+      const pnl = posValue !== null ? posValue - costBasis : null;
+      const pnlPct = pnl !== null ? (pnl / costBasis) * 100 : null;
+      const riskScore = analysis ? analysis.analysis.risk_score : null;
+      const alertTier = analysis ? (analysis.alert ? analysis.alert.alert_tier : null) : null;
+
+      if (posValue !== null) {
+        totalValue += posValue;
+        totalCost += costBasis;
+      }
+
+      // Best/worst
+      if (pnlPct !== null) {
+        if (pnlPct > bestPnlPct) { bestPnlPct = pnlPct; bestTicker = h.ticker; }
+        if (pnlPct < worstPnlPct) { worstPnlPct = pnlPct; worstTicker = h.ticker; }
+      }
+
+      // Weighted risk
+      if (riskScore !== null && posValue !== null) {
+        weightedRisk += riskScore * posValue;
+        totalWeightedValue += posValue;
+        hasAnalysis = true;
+      }
+
+      // Sector map for chart
+      if (snapshot && snapshot.sectors) {
+        // Use ticker as proxy — sector assignment from analysis
+      }
+
+      const tr = document.createElement('tr');
+      tr.id = `row-${h.id}`;
+
+      const alertDotClass = !alertTier ? 'alert-none' :
+        alertTier === 'yellow' ? 'alert-yellow' :
+        alertTier === 'orange' ? 'alert-orange' : 'alert-red';
+
+      tr.innerHTML = `
+        <td class="ticker-cell">${h.ticker}</td>
+        <td>${fmt(h.shares, h.shares % 1 === 0 ? 0 : 2)}</td>
+        <td>$${fmt(h.average_cost)}</td>
+        <td>${currentPrice !== null ? '$' + fmt(currentPrice) : '<span style="color:var(--muted)">—</span>'}</td>
+        <td>${posValue !== null ? fmtDollar(posValue) : '<span style="color:var(--muted)">—</span>'}</td>
+        <td class="${pnl !== null ? (pnl >= 0 ? 'up' : 'down') : ''}">${pnl !== null ? fmtDollar(pnl) : '<span style="color:var(--muted)">—</span>'}</td>
+        <td class="${pnlPct !== null ? (pnlPct >= 0 ? 'up' : 'down') : ''}">${pnlPct !== null ? fmtChange(pnlPct) : '<span style="color:var(--muted)">—</span>'}</td>
+        <td>${riskScore !== null ? `<span class="risk-pill ${riskPillClass(riskScore)}">${riskScore} · ${riskLabel(riskScore)}</span>` : '<span style="color:var(--muted);font-size:11px;">—</span>'}</td>
+        <td><span class="alert-dot ${alertDotClass}"></span></td>
+        <td style="display:flex;gap:6px;align-items:center;">
+          <button class="analyze-btn" onclick="analyzeSingle('${h.ticker}', ${h.id})">▶</button>
+          <button class="delete-btn" onclick="deleteHolding(${h.id}, '${h.ticker}')">✕</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+
+      // Expanded analysis panel row
+      if (analysis) {
+        const panelTr = document.createElement('tr');
+        panelTr.id = `panel-${h.id}`;
+        panelTr.innerHTML = `<td colspan="10" style="padding:0;"><div class="analysis-panel open" id="analysis-${h.id}">${buildAnalysisPanel(analysis)}</div></td>`;
+        tbody.appendChild(panelTr);
+      }
+    });
+
+    // Summary
+    const totalPnl = totalValue - totalCost;
+    const totalPnlPct = totalCost > 0 ? (totalPnl / totalCost) * 100 : 0;
+
+    document.getElementById('totalValue').textContent = fmtDollar(totalValue);
+    document.getElementById('totalValueSub').textContent = `Cost basis: ${fmtDollar(totalCost)}`;
+
+    const pnlEl = document.getElementById('totalPnl');
+    pnlEl.textContent = fmtDollar(totalPnl);
+    pnlEl.className = `summary-value mono ${totalPnl >= 0 ? 'up' : 'down'}`;
+    document.getElementById('totalPnlPct').textContent = fmtChange(totalPnlPct);
+    document.getElementById('totalPnlPct').className = `summary-sub ${totalPnl >= 0 ? 'up' : 'down'}`;
+
+    // Portfolio risk
+    if (hasAnalysis && totalWeightedValue > 0) {
+      const avgRisk = Math.round(weightedRisk / totalWeightedValue);
+      const riskEl = document.getElementById('portfolioRisk');
+      riskEl.textContent = avgRisk;
+      riskEl.className = `summary-value mono ${riskClass(avgRisk)}`;
+
+      document.getElementById('sidebarRiskScore').textContent = avgRisk;
+      document.getElementById('sidebarRiskScore').className = `portfolio-risk-score mono ${riskClass(avgRisk)}`;
+      document.getElementById('sidebarGaugeFill').style.width = avgRisk + '%';
+      document.getElementById('sidebarGaugeFill').style.background = riskColor(avgRisk);
+      document.getElementById('riskSidebar').style.display = 'block';
+    }
+
+    // Best/worst
+    if (bestTicker) {
+      document.getElementById('bestTicker').textContent = bestTicker;
+      document.getElementById('bestVal').textContent = fmtChange(bestPnlPct);
+      document.getElementById('worstTicker').textContent = worstTicker;
+      document.getElementById('worstVal').textContent = fmtChange(worstPnlPct);
+      document.getElementById('bestWorstCard').style.display = 'block';
+    }
+
+    // Sector chart
+    renderSectorChart(holdings);
+  }
+
+  function buildAnalysisPanel(analysis) {
+    const a = analysis.analysis || {};
+    const factors = (a.key_factors || []).map(f =>
+      `<li class="panel-factor"><div class="factor-dot"></div><span>${f}</span></li>`
+    ).join('');
+
+    return `
+      <div style="padding:20px 24px;">
+        <p class="panel-summary">${a.summary || '—'}</p>
+        <ul class="panel-factors">${factors}</ul>
+        ${a.watch_next_24h ? `
+          <div class="watch-panel">
+            <div class="watch-label">WATCH 24H</div>
+            ${a.watch_next_24h}
+          </div>` : ''}
+      </div>
+    `;
+  }
+
+  // ── Sector pie chart ───────────────────────────────────────────
+  function renderSectorChart(holdings) {
+    // Map tickers to approximate sectors
+    const sectorMap = {
+      AAPL: 'Technology', MSFT: 'Technology', NVDA: 'Technology', GOOGL: 'Technology',
+      GOOG: 'Technology', META: 'Technology', AMZN: 'Consumer', TSLA: 'Consumer',
+      JPM: 'Financials', BAC: 'Financials', GS: 'Financials', V: 'Financials',
+      JNJ: 'Healthcare', UNH: 'Healthcare', PFE: 'Healthcare',
+      XOM: 'Energy', CVX: 'Energy',
+      SPY: 'ETF', QQQ: 'ETF', VTI: 'ETF', IWM: 'ETF',
+    };
+
+    const allocation = {};
+    holdings.forEach(h => {
+      const analysis = analysisData[h.ticker];
+      const snapshot = analysis ? analysis.snapshot : null;
+      const currentPrice = snapshot ? snapshot.current_price : h.average_cost;
+      const posValue = currentPrice * h.shares;
+      const sector = sectorMap[h.ticker] || 'Other';
+      allocation[sector] = (allocation[sector] || 0) + posValue;
+    });
+
+    if (Object.keys(allocation).length === 0) return;
+
+    const labels = Object.keys(allocation);
+    const values = Object.values(allocation);
+    const colors = ['#00D4FF','#00ff88','#ffd700','#ff8c00','#ff3d5a','#a78bfa','#34d399','#f87171'];
+
+    Plotly.newPlot('sectorChart', [{
+      type: 'pie',
+      labels,
+      values,
+      hole: 0.5,
+      textinfo: 'label+percent',
+      textfont: { family: 'JetBrains Mono', size: 11, color: '#e2e8f8' },
+      marker: { colors: colors.slice(0, labels.length), line: { color: '#050810', width: 2 } },
+      hovertemplate: '<b>%{label}</b><br>%{percent}<extra></extra>',
+    }], {
+      paper_bgcolor: 'transparent',
+      plot_bgcolor: 'transparent',
+      showlegend: false,
+      margin: { t: 0, b: 0, l: 0, r: 0 },
+      font: { family: 'JetBrains Mono', color: '#e2e8f8' },
+    }, { responsive: true, displayModeBar: false });
+
+    document.getElementById('sectorSidebar').style.display = 'block';
+  }
+
+  // ── Add holding ────────────────────────────────────────────────
+  async function addHolding() {
+    const ticker = document.getElementById('addTicker').value.trim().toUpperCase();
+    const shares = parseFloat(document.getElementById('addShares').value);
+    const cost = parseFloat(document.getElementById('addCost').value);
+
+    if (!ticker || isNaN(shares) || isNaN(cost) || shares <= 0 || cost <= 0) {
+      showToast('Please fill in all fields correctly', 'error');
+      return;
+    }
+
+    try {
+      const res = await fetch('/portfolio/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticker, shares, average_cost: cost })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(`Added ${shares} shares of ${ticker}`);
+        document.getElementById('addTicker').value = '';
+        document.getElementById('addShares').value = '';
+        document.getElementById('addCost').value = '';
+        await loadPortfolio();
+      } else {
+        showToast(data.error || 'Failed to add holding', 'error');
+      }
+    } catch(e) {
+      showToast('Request failed', 'error');
+    }
+  }
+
+  // ── Delete holding ─────────────────────────────────────────────
+  async function deleteHolding(id, ticker) {
+    if (!confirm(`Remove ${ticker} from portfolio?`)) return;
+
+    try {
+      const res = await fetch('/portfolio/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(`Removed ${ticker}`);
+        delete analysisData[ticker];
+        await loadPortfolio();
+      } else {
+        showToast(data.error || 'Failed to delete', 'error');
+      }
+    } catch(e) {
+      showToast('Request failed', 'error');
+    }
+  }
+
+  // ── Analyze single ─────────────────────────────────────────────
+  async function analyzeSingle(ticker, holdingId) {
+    const btn = document.querySelector(`#row-${holdingId} .analyze-btn`);
+    if (btn) { btn.disabled = true; btn.textContent = '...'; }
+
+    try {
+      const res = await fetch('/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticker })
+      });
+      const data = await res.json();
+      if (data.error) { showToast(data.error, 'error'); return; }
+
+      analysisData[ticker] = data;
+      renderHoldingsTable(portfolioData);
+      showToast(`${ticker} analyzed ${data.cached ? '(cached)' : ''}`)
+    } catch(e) {
+      showToast('Analysis failed', 'error');
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = '▶'; }
+    }
+  }
+
+  // ── Analyze all ────────────────────────────────────────────────
+  async function analyzeAll() {
+    if (portfolioData.length === 0) { showToast('No holdings to analyze', 'error'); return; }
+
+    const btn = document.getElementById('analyzeAllBtn');
+    btn.disabled = true;
+    btn.textContent = 'Analyzing...';
+
+    try {
+      const res = await fetch('/portfolio/analyze');
+      const data = await res.json();
+      if (data.error) { showToast(data.error, 'error'); return; }
+
+      (data.portfolio || []).forEach(item => {
+        analysisData[item.ticker] = item;
+        // Update portfolioData with holding info
+        const idx = portfolioData.findIndex(h => h.ticker === item.ticker);
+        if (idx !== -1 && item.holding) portfolioData[idx] = item.holding;
+      });
+
+      renderHoldingsTable(portfolioData);
+      showToast(`Analyzed ${data.portfolio.length} holdings`);
+    } catch(e) {
+      showToast('Analysis failed', 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '⚡ Analyze All';
+    }
+  }
+
+  // ── Enter key on add form ──────────────────────────────────────
+  ['addTicker','addShares','addCost'].forEach(id => {
+    document.getElementById(id).addEventListener('keydown', e => {
+      if (e.key === 'Enter') addHolding();
+    });
+  });
+
+  // ── Init ───────────────────────────────────────────────────────
+  loadPortfolio();
+</script>
+</body>
+</html>

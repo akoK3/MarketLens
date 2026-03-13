@@ -10,9 +10,48 @@ from news_fetcher import get_full_news
 from claude_analyst import analyze_market
 from alert_engine import run_alert_engine
 
+from collections import defaultdict
+from datetime import datetime, timedelta
+import threading
+
 load_dotenv()
 
 app = Flask(__name__)
+
+# ── Rate limiting ─────────────────────────────────────────────
+RATE_LIMIT_MINUTES = 10
+DAILY_CLAUDE_LIMIT = 50
+
+_rate_lock = threading.Lock()
+_ip_last_call = defaultdict(lambda: datetime.min)
+_daily_calls = {"count": 0, "reset_date": datetime.utcnow().date()}
+
+def check_rate_limit(ip):
+    with _rate_lock:
+        now = datetime.utcnow()
+
+        # Reset daily counter if new day
+        if now.date() > _daily_calls["reset_date"]:
+            _daily_calls["count"] = 0
+            _daily_calls["reset_date"] = now.date()
+
+        # Check daily budget
+        if _daily_calls["count"] >= DAILY_CLAUDE_LIMIT:
+            return False, "Daily analysis limit reached. Try again tomorrow."
+
+        # Check per-IP rate limit
+        last = _ip_last_call[ip]
+        if now - last < timedelta(minutes=RATE_LIMIT_MINUTES):
+            wait = RATE_LIMIT_MINUTES - int((now - last).total_seconds() / 60)
+            return False, f"Rate limit: wait {wait} more minute(s) before next analysis."
+
+        return True, None
+
+def record_claude_call(ip):
+    with _rate_lock:
+        _ip_last_call[ip] = datetime.utcnow()
+        _daily_calls["count"] += 1
+
 CACHE_TTL_MINUTES = 60
 
 init_db()
@@ -53,7 +92,11 @@ def analyze():
     if cached:
         cached["cached"] = True
         return jsonify(cached)
-
+    # Check rate limit
+    ip = request.remote_addr
+    allowed, reason = check_rate_limit(ip)
+    if not allowed:
+        return jsonify({"error": reason}), 429  
     # Fetch fresh data
     snapshot = get_full_snapshot(ticker)
     if not snapshot:
@@ -64,6 +107,7 @@ def analyze():
     # Claude analysis
     try:
         analysis = analyze_market(snapshot, news)
+        record_claude_call(ip)
     except Exception as e:
         return jsonify({"error": f"Analysis failed: {str(e)}"}), 500
 

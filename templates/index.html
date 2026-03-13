@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>MarketLens</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%23050810'/><rect width='32' height='32' rx='6' fill='none' stroke='%2300D4FF' stroke-width='2'/><text x='50%25' y='50%25' dominant-baseline='central' text-anchor='middle' font-family='monospace' font-weight='700' font-size='14' fill='%2300D4FF'>ML</text></svg>">
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&family=Syne:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -596,13 +597,13 @@
 <!-- Navbar -->
 <nav>
   <div class="nav-inner">
-    <a href="/" class="logo">
+    <a href="/" class="logo" onclick="localStorage.removeItem('lastTicker')">
       <div class="logo-mark">ML</div>
       <div class="logo-text">Market<span>Lens</span></div>
     </a>
     <div class="nav-links">
       <div class="live-dot" style="margin-right:4px;"></div>
-      <a href="/" class="nav-link active">Analysis</a>
+      <a href="/" class="nav-link active" onclick="localStorage.removeItem('lastTicker')">Analysis</a>
       <a href="/portfolio" class="nav-link">Portfolio</a>
     </div>
   </div>
@@ -937,6 +938,7 @@
       }
 
       currentData = data;
+      localStorage.setItem('lastTicker', ticker);
       renderResults(data);
 
     } catch(e) {
@@ -1172,9 +1174,17 @@
   }
 
   // ── Enter key ──────────────────────────────────────────────────
-  document.getElementById('tickerInput').addEventListener('keydown', e => {
-    if (e.key === 'Enter') runAnalysis();
-  });
+document.addEventListener('DOMContentLoaded', () => {
+    const lastTicker = localStorage.getItem('lastTicker')
+    if (lastTicker && document.getElementById('tickerInput')) {
+        const input = document.getElementById('tickerInput')
+        input.value = lastTicker
+        setTimeout(() => {
+            input.value = lastTicker
+            runAnalysis()
+        }, 500)
+    }
+})
 </script>
 </body>
 </html>
