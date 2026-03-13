@@ -14,7 +14,28 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 import threading
 
+import sys
+print("Python version:", sys.version, flush=True)
+print("Starting imports...", flush=True)
 load_dotenv()
+
+from flask import Flask, jsonify, request, render_template
+print("Flask imported", flush=True)
+from datetime import datetime, timedelta
+print("datetime imported", flush=True)
+import json, os
+from dotenv import load_dotenv
+print("dotenv imported", flush=True)
+from database import init_db, get_cached_analysis, save_analysis, get_portfolio, add_holding, delete_holding
+print("database imported", flush=True)
+from data_fetcher import get_full_snapshot
+print("data_fetcher imported", flush=True)
+from news_fetcher import get_full_news
+print("news_fetcher imported", flush=True)
+from claude_analyst import analyze_market
+print("claude_analyst imported", flush=True)
+from alert_engine import run_alert_engine
+print("alert_engine imported", flush=True)
 
 app = Flask(__name__)
 
